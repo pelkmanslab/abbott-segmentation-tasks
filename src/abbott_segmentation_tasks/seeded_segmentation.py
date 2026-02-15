@@ -6,7 +6,7 @@ from typing import Optional
 
 import numpy as np
 from ngio import open_ome_zarr_container
-from ngio.images._masked_image import MaskedImage
+from ngio.images._masked_image import MaskedImage, MaskedLabel
 from pydantic import validate_call
 from skimage.segmentation import watershed
 
@@ -99,6 +99,39 @@ def load_masked_image(
         path=level_path,
     )
     return masked_image
+
+
+def load_masked_label(
+    ome_zarr,
+    label_name: str,
+    masking_configuration: MaskingConfiguration,
+    level_path: Optional[str] = None,
+) -> MaskedLabel:
+    """Load a masked label image from an OME-Zarr based on the masking configuration.
+
+    Args:
+        ome_zarr: The OME-Zarr container.
+        label_name (str): Name of the label image to load.
+        masking_configuration (MaskingConfiguration): Configuration for masking.
+        level_path (Optional[str]): Optional path to a specific resolution level.
+
+    """
+    if masking_configuration.mode == "Table Name":
+        masking_table_name = masking_configuration.identifier
+        masking_label_name = None
+    else:
+        masking_label_name = masking_configuration.identifier
+        masking_table_name = None
+    logger.info(f"Using masked label with {masking_table_name=}, {masking_label_name=}")
+
+    # Base Iterator with masking
+    masked_label = ome_zarr.get_masked_label(
+        label_name=label_name,
+        masking_label_name=masking_label_name,
+        masking_table_name=masking_table_name,
+        path=level_path,
+    )
+    return masked_label
 
 
 @validate_call
@@ -197,15 +230,11 @@ def seeded_segmentation(
         )
     else:
         # Since masking is requested, we need to determine load a masking image
-        seed_label = ome_zarr.get_masked_label(
-            label_name,
-            masking_label_name=iterator_configuration.masking.identifier
-            if iterator_configuration.masking.mode == "Label Name"
-            else None,
-            masking_table_name=iterator_configuration.masking.identifier
-            if iterator_configuration.masking.mode == "Table Name"
-            else None,
-            path=level_path,
+        seed_label = load_masked_label(
+            ome_zarr=ome_zarr,
+            label_name=label_name,
+            masking_configuration=iterator_configuration.masking,
+            level_path=level_path,
         )
         masked_image = load_masked_image(
             ome_zarr=ome_zarr,

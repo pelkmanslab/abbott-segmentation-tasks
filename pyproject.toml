@@ -3,10 +3,6 @@
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
-# https://hatch.pypa.io/latest/config/metadata/
-[tool.hatch.version]
-source = "vcs"
-
 # read more about configuring hatch at:
 # https://hatch.pypa.io/latest/config/build/
 [tool.hatch.build.targets.wheel]
@@ -15,7 +11,7 @@ packages = ["src/abbott_segmentation_tasks"]
 # Project metadata (see https://peps.python.org/pep-0621)
 [project]
 name = "abbott-segmentation-tasks"
-dynamic = ["version"]
+version = "0.2.dev1"
 description = "Fractal Task to run Segmentation tasks."
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
@@ -35,6 +31,7 @@ dependencies = [
     "stardist",
     "setuptools<81",
     "tensorflow",
+    "h5py==3.14.0"
 ]
 
 # Optional dependencies (e.g. for `pip install -e ".[dev]"`, see
@@ -49,6 +46,7 @@ dev = [
     "jsonschema",
     "ruff",
     "pre-commit",
+    "build"
 ]
 
 # https://docs.astral.sh/ruff
@@ -126,3 +124,6 @@ init-tasks = [
     { task = "create-manifest", environment = "dev" },
     { task = "test", environment = "dev" },
 ]
+
+[tool.pixi.feature.dev.tasks]
+build-package = { cmd = ["python", "-m", "build"] }

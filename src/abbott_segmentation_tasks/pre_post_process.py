@@ -119,11 +119,11 @@ class SizeFilter(BaseModel):
 
     Attributes:
         type (Literal["size_filter"]): Type of post-processing.
-        min_size (int): Minimum size in pixels for objects to keep.
+        max_size (int): Maximum size in pixels for objects to keep.
     """
 
     type: Literal["size_filter"] = "size_filter"
-    min_size: int = Field(ge=0)
+    max_size: int = Field(ge=0)
 
     def apply(self, labels: np.ndarray) -> np.ndarray:
         """Apply size filtering to the labeled image.
@@ -134,7 +134,7 @@ class SizeFilter(BaseModel):
         Returns:
             np.ndarray: Size-filtered labeled image.
         """
-        return remove_small_objects(labels, min_size=self.min_size)
+        return remove_small_objects(labels, max_size=self.max_size)
 
 
 PostProcess = Annotated[

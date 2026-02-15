@@ -335,15 +335,15 @@
                 "type": "string",
                 "description": "Type of post-processing."
               },
-              "min_size": {
+              "max_size": {
                 "minimum": 0,
-                "title": "Min Size",
+                "title": "Max Size",
                 "type": "integer",
-                "description": "Minimum size in pixels for objects to keep."
+                "description": "Maximum size in pixels for objects to keep."
               }
             },
             "required": [
-              "min_size"
+              "max_size"
             ],
             "title": "SizeFilter",
             "type": "object"
@@ -538,7 +538,7 @@
         "type": "object",
         "title": "StardistSegmentationTask"
       },
-      "docs_link": "https://github.com/pelkmanslab/abbott-stardist-task"
+      "docs_link": "https://github.com/pelkmanslab/abbott-segmentation-tasks"
     },
     {
       "name": "Seeded Watershed Segmentation",
@@ -765,15 +765,15 @@
                 "type": "string",
                 "description": "Type of post-processing."
               },
-              "min_size": {
+              "max_size": {
                 "minimum": 0,
-                "title": "Min Size",
+                "title": "Max Size",
                 "type": "integer",
-                "description": "Minimum size in pixels for objects to keep."
+                "description": "Maximum size in pixels for objects to keep."
               }
             },
             "required": [
-              "min_size"
+              "max_size"
             ],
             "title": "SizeFilter",
             "type": "object"
@@ -884,7 +884,7 @@
         "type": "object",
         "title": "SeededSegmentation"
       },
-      "docs_link": "https://github.com/pelkmanslab/abbott-stardist-task"
+      "docs_link": "https://github.com/pelkmanslab/abbott-segmentation-tasks"
     }
   ],
   "has_args_schemas": true,

@@ -75,7 +75,7 @@ def test_seeded_segmentation_segmentation_task(
             GaussianFilter(sigma_xy=1.0),
             MedianFilter(size_xy=3),
         ],
-        post_process=[SizeFilter(min_size=10)],
+        post_process=[SizeFilter(max_size=10)],
     )
     seeded_segmentation(
         zarr_url=str(test_data_path),

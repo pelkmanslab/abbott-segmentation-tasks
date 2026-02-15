@@ -1,4 +1,4 @@
-"""This is the Python module for my_task."""
+"""Stardist Segmentation Task"""
 
 import logging
 import time
