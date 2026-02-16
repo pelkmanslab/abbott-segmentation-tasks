@@ -1,4 +1,4 @@
-"""This is the Python module for my_task."""
+"""Stardist Segmentation Task"""
 
 import logging
 import time
@@ -12,10 +12,18 @@ from ngio.images._masked_image import MaskedImage
 from pydantic import validate_call
 from stardist.models import StarDist2D, StarDist3D
 
-from abbott_stardist_task.utils import (
+from abbott_segmentation_tasks.pre_post_process import (
+    PrePostProcessConfiguration,
+    apply_post_process,
+    apply_pre_process,
+)
+from abbott_segmentation_tasks.utils import (
     AdvancedStardistParams,
+    AnyCreateRoiTableModel,
+    CreateMaskingRoiTable,
     IteratorConfiguration,
     MaskingConfiguration,
+    SkipCreateMaskingRoiTable,
     StardistChannel,
     StardistModels,
     StardistpretrainedModel,
@@ -31,6 +39,7 @@ def segmentation_function(
     model: StardistModels,
     parameters: AdvancedStardistParams,
     do_3D: bool,
+    pre_post_process: PrePostProcessConfiguration,
 ) -> np.ndarray:
     """Wrap Stardist segmentation call.
 
@@ -40,10 +49,18 @@ def segmentation_function(
         parameters (AdvancedStardistParams): Advanced parameters for
             Stardist segmentation.
         do_3D (bool): Whether to perform 3D segmentation.
+        pre_post_process (PrePostProcessConfiguration): Configuration for pre- and
+            post-processing steps.
 
     Returns:
         np.ndarray: Segmented image
     """
+    # Pre-processing
+    image_data = apply_pre_process(
+        image=image_data,
+        pre_process_steps=pre_post_process.pre_process,
+    )
+
     normalization = parameters.normalization
     image_data = normalize_stardist_channel(image_data, normalization)
 
@@ -71,6 +88,12 @@ def segmentation_function(
         verbose=parameters.verbose,
         predict_kwargs=parameters.predict_kwargs,
         nms_kwargs=parameters.nms_kwargs,
+    )
+
+    # Post-processing
+    masks = apply_post_process(
+        labels=masks,
+        post_process_steps=pre_post_process.post_process,
     )
 
     masks = np.expand_dims(masks, axis=0).astype(np.uint32)
@@ -122,6 +145,8 @@ def stardist_segmentation_task(
     model_type: StardistModels = StardistModels.DEMO_3D,
     custom_model: Optional[StardistpretrainedModel] = None,
     advanced_parameters: AdvancedStardistParams = AdvancedStardistParams(),  # noqa: B008
+    pre_post_process: PrePostProcessConfiguration = PrePostProcessConfiguration(),  # noqa: B008
+    create_masking_roi_table: AnyCreateRoiTableModel = SkipCreateMaskingRoiTable(),  # noqa: B008
     overwrite: bool = True,
 ) -> None:
     """Segment an image using Stardist.
@@ -147,6 +172,10 @@ def stardist_segmentation_task(
             a custom trained stardist model (takes precedence over `model_type`).
         advanced_parameters (AdvancedStardistParams): Advanced parameters
             for Stardist segmentation.
+        pre_post_process (PrePostProcessConfiguration): Configuration for pre- and
+            post-processing steps.
+        create_masking_roi_table (AnyCreateMaskingRoiTableModel): Configuration to
+            create a masking ROI table after segmentation.
         overwrite (bool): Whether to overwrite an existing label image.
             Defaults to True.
     """
@@ -266,6 +295,7 @@ def stardist_segmentation_task(
             model=model,
             parameters=advanced_parameters,
             do_3D=ome_zarr.is_3d,
+            pre_post_process=pre_post_process,
         )
         # Ensure unique labels across different chunks
         label_img = np.where(label_img == 0, 0, label_img + max_label)
@@ -273,6 +303,12 @@ def stardist_segmentation_task(
         writer(label_img)
 
     logging.info(f"label {label_name} successfully created at {zarr_url}")
+
+    if isinstance(create_masking_roi_table, CreateMaskingRoiTable):
+        table_name = create_masking_roi_table.get_table_name(label_name=label_name)
+        masking_roi_table = label.build_masking_roi_table()
+        ome_zarr.add_table(name=table_name, table=masking_roi_table)
+
     return None
 
 

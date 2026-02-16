@@ -5,10 +5,10 @@ import pytest
 from ngio import OmeZarrContainer, create_synthetic_ome_zarr
 from skimage.metrics import adapted_rand_error
 
-from abbott_stardist_task.stardist_segmentation_task import (
+from abbott_segmentation_tasks.stardist_segmentation_task import (
     stardist_segmentation_task,
 )
-from abbott_stardist_task.utils import (
+from abbott_segmentation_tasks.utils import (
     IteratorConfiguration,
     MaskingConfiguration,
     StardistChannel,
@@ -79,7 +79,7 @@ def test_stardist_segmentation_task(
     ome_zarr = create_synthetic_ome_zarr(
         store=test_data_path,
         shape=shape,
-        channel_labels=channel_labels,
+        channels_meta=channel_labels,
         overwrite=False,
         axes_names=axes,
     )
@@ -138,7 +138,7 @@ def test_stardist_segmentation_task_masked(
     ome_zarr = create_synthetic_ome_zarr(
         store=test_data_path,
         shape=shape,
-        channel_labels=channel_labels,
+        channels_meta=channel_labels,
         overwrite=False,
         axes_names=axes,
     )
@@ -194,7 +194,7 @@ def test_stardist_segmentation_task_no_mock(tmp_path: Path):
     ome_zarr = create_synthetic_ome_zarr(
         store=test_data_path,
         shape=shape,
-        channel_labels=channel_labels,
+        channels_meta=channel_labels,
         overwrite=False,
         axes_names=axes,
     )

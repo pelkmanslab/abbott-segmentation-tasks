@@ -1,19 +1,304 @@
-"""Pydantic models for advanced iterator configuration."""
+"""Pydantic models for advanced iterator configuration.
 
+Many based on https://github.com/fractal-analytics-platform/fractal-cellpose-sam-task
+"""
+
+from collections.abc import Sequence
 from enum import Enum
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
+import dask.array as da
 import numpy as np
 from csbdeep.utils import normalize
 from ngio import ChannelSelectionModel
-from pydantic import BaseModel, Field, model_validator
+from ngio.common import Roi
+from ngio.experimental.iterators import MaskedSegmentationIterator, SegmentationIterator
+from ngio.images import Image, Label
+from ngio.images._image import (
+    ChannelSlicingInputType,
+)
+from ngio.images._masked_image import MaskedImage, MaskedLabel
+from ngio.io_pipes import (
+    DaskRoiGetter,
+    NumpyRoiGetter,
+    TransformProtocol,
+)
+from ngio.io_pipes._io_pipes_types import DataGetterProtocol
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing_extensions import Self
+
+
+class CreateMaskingRoiTable(BaseModel):
+    """Create Masking ROI Table Configuration
+
+    Attributes:
+        mode: Literal["Create Masking ROI Table"]: Mode to create masking ROI table.
+        table_name: str: Name of the masking ROI table to be created.
+            Defaults to "{label_name}_masking_ROI_table", where {label_name} is
+            the name of the label image used for segmentation.
+
+    """
+
+    mode: Literal["Create Masking ROI Table"] = "Create Masking ROI Table"
+    table_name: str = "{label_name}_masking_ROI_table"
+
+    def get_table_name(self, label_name: str) -> str:
+        """Get the actual table name by replacing placeholder.
+
+        Args:
+            label_name (str): Name of the label image used for segmentation.
+
+        Returns:
+            str: Actual name of the masking ROI table.
+        """
+        return self.table_name.format(label_name=label_name)
+
+
+class SkipCreateMaskingRoiTable(BaseModel):
+    """Skip Creating Masking ROI Table Configuration
+
+    Attributes:
+        mode: Literal["Skip Creating Masking ROI Table"]: Mode to skip creating masking
+            ROI table
+    """
+
+    mode: Literal["Skip Creating Masking ROI Table"] = "Skip Creating Masking ROI Table"
+
+
+AnyCreateRoiTableModel = Annotated[
+    CreateMaskingRoiTable | SkipCreateMaskingRoiTable,
+    Field(discriminator="mode"),
+]
+
+
+class SeededSegmentationParams(BaseModel):
+    """Advanced Seeded Segmentation Parameters.
+
+    Attributes:
+        compactness: Parameter for skimage.segmentation.watershed. Higher values
+            result in more regularly-shaped watershed basins.
+    """
+
+    compactness: float = 0.0
+
+
+class SeededSegmentationChannels(BaseModel):
+    """Seeded segmentation channels configuration.
+
+    Attributes:
+        identifiers (str): Unique identifier for the channel.
+            This can be a channel label, wavelength ID, or index.
+        mode (Literal["label", "wavelength_id", "index"]): Specifies how to
+            interpret the identifier. Can be "label", "wavelength_id", or
+            "index" (must be an integer). At least one and at most three
+            identifiers must be provided.
+
+    """
+
+    mode: Literal["label", "wavelength_id", "index"] = "label"
+    identifiers: list[str] = Field(default_factory=list, min_length=1, max_length=3)
+
+    @field_validator("identifiers", mode="after")
+    @classmethod
+    def validate_identifiers(cls, value: list[str]) -> list[str]:
+        """Validate identifiers are non-empty"""
+        for identifier in value:
+            if not identifier:
+                raise ValueError("Identifiers must be non-empty strings.")
+        return value
+
+    def to_list(self) -> list[ChannelSelectionModel]:
+        """Convert to list of ChannelSelectionModel.
+
+        Returns:
+            list[ChannelSelectionModel]: List of ChannelSelectionModel.
+        """
+        return [
+            ChannelSelectionModel(identifier=identifier, mode=self.mode)
+            for identifier in self.identifiers
+        ]
+
+
+class SeededSegmentationIterator(SegmentationIterator):
+    """Iterator for seeded segmentation with regular images."""
+
+    def __init__(
+        self,
+        input_image: Image,
+        input_label: Label,
+        output_label: Label,
+        channel_selection: ChannelSlicingInputType = None,
+        axes_order: Sequence[str] | None = None,
+        input_transforms: Sequence[TransformProtocol] | None = None,
+        output_transforms: Sequence[TransformProtocol] | None = None,
+    ) -> None:
+        """Initialize the iterator with a ROI table and input/output images.
+
+        Attributes:
+            input_image (Image): The input image to be used as input for the
+                segmentation.
+            input_label (Label): The label image to be used as input seeds for the
+                segmentation.
+            output_label (Label): The label image where the ROIs will be written.
+            channel_selection (ChannelSlicingInputType): Optional
+                selection of channels to use for the segmentation.
+            axes_order (Sequence[str] | None): Optional axes order for the
+                segmentation.
+            input_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the input image.
+            output_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the output label.
+        """
+        super().__init__(
+            input_image=input_image,
+            output_label=output_label,
+            channel_selection=channel_selection,
+            axes_order=axes_order,
+            input_transforms=input_transforms,
+            output_transforms=output_transforms,
+        )
+        self._input_label = input_label
+
+    def get_init_kwargs(self) -> dict:
+        """Return the initialization arguments for the iterator."""
+        kwargs = super().get_init_kwargs()
+        kwargs["input_label"] = self._input_label
+        return kwargs
+
+    def build_numpy_getter(self, roi: Roi) -> DataGetterProtocol[np.ndarray]:
+        """Build a numpy getter that returns both image and seed label data.
+
+        Args:
+            roi: Region of interest to extract data from.
+
+        Returns:
+            A function that returns a tuple of (image_data, seed_label_data).
+        """
+        # Create getters for both image and seed label
+        image_getter = super().build_numpy_getter(roi)
+        label_getter = NumpyRoiGetter(
+            zarr_array=self._input_label.zarr_array,
+            dimensions=self._input_label.dimensions,
+            roi=roi,
+            axes_order=self._axes_order,
+            transforms=None,  # or add separate seed_transforms if needed
+            slicing_dict={},
+            remove_channel_selection=True,
+        )
+
+        # Return a composite getter
+        class CompositeGetter:
+            def __call__(self):
+                return (image_getter(), label_getter())
+
+        return CompositeGetter()
+
+    def build_dask_getter(self, roi: Roi) -> DataGetterProtocol[da.Array]:
+        """Build a dask getter that returns both image and seed label data.
+
+        Args:
+            roi: Region of interest to extract data from.
+
+        Returns:
+            A function that returns a tuple of (image_data, seed_label_data).
+        """
+        # Create getters for both image and seed label
+        image_getter = super().build_dask_getter(roi)
+        label_getter = DaskRoiGetter(
+            zarr_array=self._input_label.zarr_array,
+            dimensions=self._input_label.dimensions,
+            roi=roi,
+            axes_order=self._axes_order,
+            transforms=None,  # or add separate seed_transforms if needed
+            slicing_dict={},
+        )
+
+        # Return a composite getter
+        class CompositeGetter:
+            def __call__(self):
+                return (image_getter(), label_getter())
+
+        return CompositeGetter()
+
+
+class SeededMaskedSegmentationIterator(MaskedSegmentationIterator):
+    """Iterator for seeded segmentation with masked images."""
+
+    def __init__(
+        self,
+        input_image: MaskedImage,
+        input_label: MaskedLabel,
+        output_label: Label,
+        channel_selection: ChannelSlicingInputType = None,
+        axes_order: Sequence[str] | None = None,
+        input_transforms: Sequence[TransformProtocol] | None = None,
+        output_transforms: Sequence[TransformProtocol] | None = None,
+    ) -> None:
+        """Initialize the iterator with a ROI table and input/output images.
+
+        Attributes:
+            input_image (MaskedImage): The input image to be used as input for the
+                segmentation.
+            input_label (Label): The label image to be used as input seeds for the
+                segmentation.
+            output_label (Label): The label image where the ROIs will be written.
+            channel_selection (ChannelSlicingInputType): Optional
+                selection of channels to use for the segmentation.
+            axes_order (Sequence[str] | None): Optional axes order for the
+                segmentation.
+            input_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the input image.
+            output_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the output label.
+        """
+        super().__init__(
+            input_image=input_image,
+            output_label=output_label,
+            channel_selection=channel_selection,
+            axes_order=axes_order,
+            input_transforms=input_transforms,
+            output_transforms=output_transforms,
+        )
+        self._input_label = input_label
+
+    def get_init_kwargs(self) -> dict:
+        """Return the initialization arguments for the iterator."""
+        kwargs = super().get_init_kwargs()
+        kwargs["input_label"] = self._input_label
+        return kwargs
+
+    def build_numpy_getter(self, roi: Roi):
+        """Build a numpy getter that returns both image and seed label data.
+
+        Args:
+            roi: Region of interest to extract data from.
+
+        Returns:
+            A function that returns a tuple of (image_data, seed_label_data).
+        """
+        # Create a tuple getter that returns (image_data, seed_label_data)
+        image_getter = super().build_numpy_getter(roi)
+        label_getter = NumpyRoiGetter(
+            zarr_array=self._input_label.zarr_array,
+            dimensions=self._input_label.dimensions,
+            roi=roi,
+            axes_order=self._axes_order,
+            transforms=None,  # or add separate seed_transforms if needed
+            slicing_dict={},
+        )
+
+        # Return a composite getter
+        class CompositeGetter:
+            def __call__(self):
+                return (image_getter(), label_getter())
+
+        return CompositeGetter()
 
 
 class MaskingConfiguration(BaseModel):
     """Masking configuration.
 
-    Args:
+    Attributes:
         mode (Literal["Table Name", "Label Name"]): Mode of masking to be applied.
             If "Table Name", the identifier refers to a masking table name.
             If "Label Name", the identifier refers to a label image name.
@@ -28,7 +313,7 @@ class MaskingConfiguration(BaseModel):
 class IteratorConfiguration(BaseModel):
     """Advanced Masking configuration.
 
-    Args:
+    Attributes:
         masking (Optional[MaskingIterator]): If configured, the segmentation
             will be only saved within the mask region.
         roi_table (Optional[str]): Name of a ROI table. If provided, the segmentation
@@ -44,10 +329,7 @@ class IteratorConfiguration(BaseModel):
 class StardistChannel(BaseModel):
     """Stardist channel configuration.
 
-    Args:
-        This model is used to select a channel by label, wavelength ID, or index.
-
-    Args:
+    Attributes:
         identifiers (str): Unique identifier for the channel.
             This can be a channel label, wavelength ID, or index.
         mode (Literal["label", "wavelength_id", "index"]): Specifies how to
@@ -254,7 +536,7 @@ def normalize_percentile(Y: np.ndarray, lower: float = 1, upper: float = 99):
 def normalize_bounds(Y: np.ndarray, lower: int = 0, upper: int = 65535):
     """Normalize image so 0.0 is lower value and 1.0 is upper value
 
-    Args:
+    Attributes:
         Y: The image to be normalized
         lower: Lower normalization value
         upper: Upper normalization value
@@ -271,7 +553,7 @@ def normalize_stardist_channel(
 ) -> np.ndarray:
     """Normalize a Stardist input array by channel.
 
-    Args:
+    Attributes:
         x: 3D numpy array.
         normalization: By default, data is normalized so 0.0=1st percentile and
             1.0=99th percentile of image intensities in each channel.
@@ -303,7 +585,7 @@ class AdvancedStardistParams(BaseModel):
 
     Attributes:
         normalization (NormalizationParameters, optional): Normalization parameters.
-            The normalization is applied before running the Cellpose model for
+            The normalization is applied before running the Stardist model for
             each channel independently.
         sparse: If true, aggregate probabilities/distances sparsely during tiled
             prediction to save memory (recommended)
@@ -315,7 +597,7 @@ class AdvancedStardistParams(BaseModel):
         scale: Scale the input image internally by a tuple of floats and rescale
             the output accordingly. Useful if the Stardist model has been trained
             on images with different scaling. E.g. (z, y, x) = (1.0, 0.5, 0.5).
-        n_tiles : Out of memory (OOM) errors can occur if the input image is too large.
+        n_tiles: Out of memory (OOM) errors can occur if the input image is too large.
             To avoid this problem, the input image is broken up into (overlapping) tiles
             that are processed independently and re-assembled. This parameter denotes a
             tuple of the number of tiles for every image axis.
@@ -338,7 +620,7 @@ class AdvancedStardistParams(BaseModel):
     nms_kwargs: dict = None
 
 
-class StardistModels(Enum):
+class StardistModels(str, Enum):
     """Enum for Stardist model names"""
 
     VERSATILE_FLUO_2D = "2D_versatile_fluo"
@@ -353,7 +635,7 @@ class StardistpretrainedModel(BaseModel):
 
     Attributes:
         base_fld: Base folder to where custom Stardist models are stored
-        model_name: Name of the custom model
+        pretrained_model_name: Name of the custom model
     """
 
     base_fld: str
