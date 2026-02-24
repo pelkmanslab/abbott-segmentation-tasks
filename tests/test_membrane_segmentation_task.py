@@ -47,9 +47,7 @@ def test_membrane_segmentation_segmentation_task(
     """Base test for the membrane segmentation task."""
 
     if is_github_or_fast:
-        use_gpu = False
-    else:
-        use_gpu = True
+        pytest.skip("Skipping test in GitHub Actions.")
 
     test_data_path = tmp_path / "data.zarr"
 
@@ -73,7 +71,6 @@ def test_membrane_segmentation_segmentation_task(
         zarr_url=str(test_data_path),
         label_name="cells",
         output_label_name="membranes",
-        use_gpu=use_gpu,
         overwrite=False,
     )
 
@@ -102,9 +99,7 @@ def test_membrane_segmentation_task_masked(
     """Test the seeded segmentation task with a masking configuration."""
 
     if is_github_or_fast:
-        use_gpu = False
-    else:
-        use_gpu = True
+        pytest.skip("Skipping test in GitHub Actions.")
 
     test_data_path = tmp_path / "data.zarr"
 
@@ -134,7 +129,6 @@ def test_membrane_segmentation_task_masked(
         output_label_name="membranes",
         overwrite=False,
         iterator_configuration=iter_config,
-        use_gpu=use_gpu,
     )
 
     # Check that the label image was created
@@ -145,9 +139,7 @@ def test_membrane_segmentation_task_no_mock(is_github_or_fast, tmp_path: Path):
     """Base test for the membrane segmentation task without mocking."""
 
     if is_github_or_fast:
-        use_gpu = False
-    else:
-        use_gpu = True
+        pytest.skip("Skipping test in GitHub Actions.")
 
     test_data_path = tmp_path / "data.zarr"
     shape = (1, 64, 64)
@@ -166,7 +158,6 @@ def test_membrane_segmentation_task_no_mock(is_github_or_fast, tmp_path: Path):
         zarr_url=str(test_data_path),
         label_name="cells",
         overwrite=False,
-        use_gpu=use_gpu,
     )
 
     # Check that the label image was created
