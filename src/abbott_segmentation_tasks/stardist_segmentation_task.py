@@ -136,6 +136,7 @@ def stardist_segmentation_task(
     # Fractal managed parameters
     zarr_url: str,
     # Segmentation parameters
+    ref_acquisition: Optional[int] = None,
     channel: StardistChannel,
     label_name: Optional[str] = None,
     level_path: Optional[str] = None,
@@ -156,6 +157,8 @@ def stardist_segmentation_task(
 
     Args:
         zarr_url (str): URL to the OME-Zarr container
+        ref_acquisition (Optional[int]): If provided the task will not cause an error
+            if the label does not exist for non-reference acquisitions.
         channel (StardistChannel): Channel to use for segmentation.
         label_name (Optional[str]): Name of the resulting label image. If not provided,
             it will be set to "<channel_identifier>_segmented".
@@ -186,6 +189,15 @@ def stardist_segmentation_task(
     ome_zarr = open_ome_zarr_container(zarr_url)
 
     logging.info(f"{ome_zarr=}")
+
+    # Check the acquisition and if it has the required label
+    path = ome_zarr.get_image().path
+    if int(path) != ref_acquisition and ref_acquisition is not None:
+        logger.warning(
+            f"Current acquisition {path} does not match reference acquisition "
+            f"{ref_acquisition}. Skipping segmentation for this acquisition."
+        )
+        return None
 
     if label_name is None:
         label_name = f"{channel.identifiers[0]}_segmented"
@@ -282,6 +294,9 @@ def stardist_segmentation_task(
 
     if not model_loaded:
         raise RuntimeError("Failed to load StarDist model after multiple attempts.")
+
+    # Set GPU usage based on parameters
+    model.use_gpu = advanced_parameters.use_gpu
 
     # Keep track of the maximum label to ensure unique across iterations
     max_label = 0
