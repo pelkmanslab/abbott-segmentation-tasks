@@ -19,7 +19,9 @@ from ngio.images._image import (
 )
 from ngio.images._masked_image import MaskedImage, MaskedLabel
 from ngio.io_pipes import (
+    DaskGetterMasked,
     DaskRoiGetter,
+    NumpyGetterMasked,
     NumpyRoiGetter,
     TransformProtocol,
 )
@@ -293,6 +295,151 @@ class SeededMaskedSegmentationIterator(MaskedSegmentationIterator):
                 return (image_getter(), label_getter())
 
         return CompositeGetter()
+
+
+class LabelSegmentationIterator(SegmentationIterator):
+    """Iterator that uses a Label as input instead of an Image."""
+
+    def __init__(
+        self,
+        input_label: Label,
+        output_label: Label,
+        axes_order: Sequence[str] | None = None,
+        input_transforms: Sequence[TransformProtocol] | None = None,
+        output_transforms: Sequence[TransformProtocol] | None = None,
+    ) -> None:
+        """Initialize the iterator with input and output labels.
+
+        Args:
+            input_label (Label): The input label to be used as input.
+            output_label (Label): The label image where the ROIs will be written.
+            axes_order (Sequence[str] | None): Optional axes order.
+            input_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the input label.
+            output_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the output label.
+        """
+        self._input = input_label
+        self._output = output_label
+        self._ref_image = input_label
+        self._rois = input_label.build_image_roi_table(name=None).rois()
+        self._input_slicing_kwargs = {}  # Labels have no channel dimension
+        self._channel_selection = None
+        self._axes_order = axes_order
+        self._input_transforms = input_transforms
+        self._output_transforms = output_transforms
+        self._input.require_dimensions_match(self._output, allow_singleton=False)
+
+    def get_init_kwargs(self) -> dict:
+        """Return the initialization arguments for the iterator."""
+        return {
+            "input_label": self._input,
+            "output_label": self._output,
+            "axes_order": self._axes_order,
+            "input_transforms": self._input_transforms,
+            "output_transforms": self._output_transforms,
+        }
+
+    def build_numpy_getter(self, roi: Roi) -> DataGetterProtocol[np.ndarray]:
+        """Build a numpy getter that returns label data for the given ROI."""
+        return NumpyRoiGetter(
+            zarr_array=self._input.zarr_array,
+            dimensions=self._input.dimensions,
+            roi=roi,
+            axes_order=self._axes_order,
+            transforms=self._input_transforms,
+            slicing_dict=self._input_slicing_kwargs,
+            remove_channel_selection=True,
+        )
+
+    def build_dask_getter(self, roi: Roi) -> DataGetterProtocol[da.Array]:
+        """Build a dask getter that returns label data for the given ROI."""
+        return DaskRoiGetter(
+            zarr_array=self._input.zarr_array,
+            dimensions=self._input.dimensions,
+            roi=roi,
+            axes_order=self._axes_order,
+            transforms=self._input_transforms,
+            slicing_dict=self._input_slicing_kwargs,
+            remove_channel_selection=True,
+        )
+
+    def post_consolidate(self):
+        """Post-consolidation step to ensure output label is consolidated."""
+        self._output.consolidate()
+
+
+class MaskedLabelSegmentationIterator(MaskedSegmentationIterator):
+    """Iterator over ROIs using a MaskedLabel as input instead of a MaskedImage."""
+
+    def __init__(
+        self,
+        input_label: MaskedLabel,
+        output_label: Label,
+        axes_order: Sequence[str] | None = None,
+        input_transforms: Sequence[TransformProtocol] | None = None,
+        output_transforms: Sequence[TransformProtocol] | None = None,
+    ) -> None:
+        """Initialize the iterator with a MaskedLabel input and output label.
+
+        Args:
+            input_label (MaskedLabel): The input masked label to be used as input.
+            output_label (Label): The label image where the ROIs will be written.
+            axes_order (Sequence[str] | None): Optional axes order.
+            input_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the input label.
+            output_transforms (Sequence[TransformProtocol] | None): Optional
+                transforms to apply to the output label.
+        """
+        self._input = input_label
+        self._output = output_label
+        self._ref_image = input_label
+        self._set_rois(input_label._masking_roi_table.rois())
+
+        # Labels have no channel dimension
+        self._input_slicing_kwargs = {}
+        self._channel_selection = None
+        self._axes_order = axes_order
+        self._input_transforms = input_transforms
+        self._output_transforms = output_transforms
+
+    def get_init_kwargs(self) -> dict:
+        """Return the initialization arguments for the iterator."""
+        return {
+            "input_label": self._input,
+            "output_label": self._output,
+            "axes_order": self._axes_order,
+            "input_transforms": self._input_transforms,
+            "output_transforms": self._output_transforms,
+        }
+
+    def build_numpy_getter(self, roi: Roi):
+        """Build a numpy getter that returns masked label data for the given ROI."""
+        return NumpyGetterMasked(
+            zarr_array=self._input.zarr_array,
+            dimensions=self._input.dimensions,
+            roi=roi,
+            label_zarr_array=self._input._label.zarr_array,
+            label_dimensions=self._input._label.dimensions,
+            axes_order=self._axes_order,
+            transforms=self._input_transforms,
+            slicing_dict=self._input_slicing_kwargs,
+            remove_channel_selection=True,
+        )
+
+    def build_dask_getter(self, roi: Roi):
+        """Build a dask getter that returns masked label data for the given ROI."""
+        return DaskGetterMasked(
+            roi=roi,
+            zarr_array=self._input.zarr_array,
+            dimensions=self._input.dimensions,
+            label_zarr_array=self._input._label.zarr_array,
+            label_dimensions=self._input._label.dimensions,
+            axes_order=self._axes_order,
+            transforms=self._input_transforms,
+            slicing_dict=self._input_slicing_kwargs,
+            remove_channel_selection=True,
+        )
 
 
 class MaskingConfiguration(BaseModel):
@@ -606,6 +753,7 @@ class AdvancedStardistParams(BaseModel):
         verbose: Whether to print some info messages.
         predict_kwargs: Keyword arguments for ``predict`` function of Keras model.
         nms_kwargs: Keyword arguments for non-maximum suppression.
+        use_gpu: Whether to use GPU for prediction if available. If false, runs on CPU.
     """
 
     normalization: NormalizationParameters = NormalizationParameters()
@@ -618,6 +766,7 @@ class AdvancedStardistParams(BaseModel):
     verbose: bool = False
     predict_kwargs: dict = None
     nms_kwargs: dict = None
+    use_gpu: bool = True
 
 
 class StardistModels(str, Enum):

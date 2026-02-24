@@ -24,11 +24,6 @@ INPUT_MODELS = [
     (
         "abbott_segmentation_tasks",
         "utils.py",
-        "SkipCreateMaskingRoiTable",
-    ),
-    (
-        "abbott_segmentation_tasks",
-        "utils.py",
         "CreateMaskingRoiTable",
     ),
     (
@@ -91,6 +86,11 @@ INPUT_MODELS = [
         "utils.py",
         "StardistpretrainedModel",
     ),
+    (
+        "abbott_segmentation_tasks",
+        "utils.py",
+        "SkipCreateMaskingRoiTable",
+    ),
 ]
 
 
@@ -113,5 +113,15 @@ TASK_LIST = [
             "3D",
         ],
         docs_info="file:docs_info/seeded_segmentation.md",
+    ),
+    ParallelTask(
+        name="Reduce Cell to Membrane Segmentation",
+        executable="membrane_segmentation_task.py",
+        meta={"cpus_per_task": 4, "mem": 16000, "needs_gpu": True},
+        category="Segmentation",
+        tags=[
+            "3D",
+        ],
+        docs_info="file:docs_info/membrane_segmentation_task.md",
     ),
 ]

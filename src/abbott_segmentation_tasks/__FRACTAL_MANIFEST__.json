@@ -120,6 +120,12 @@
                 "title": "Nms Kwargs",
                 "type": "object",
                 "description": "Keyword arguments for non-maximum suppression."
+              },
+              "use_gpu": {
+                "default": true,
+                "title": "Use Gpu",
+                "type": "boolean",
+                "description": "Whether to use GPU for prediction if available. If false, runs on CPU."
               }
             },
             "title": "AdvancedStardistParams",
@@ -431,6 +437,11 @@
             "type": "string",
             "description": "URL to the OME-Zarr container"
           },
+          "ref_acquisition": {
+            "title": "Ref Acquisition",
+            "type": "integer",
+            "description": "If provided the task will not cause an error if the label does not exist for non-reference acquisitions."
+          },
           "channel": {
             "$ref": "#/$defs/StardistChannel",
             "title": "Channel",
@@ -488,7 +499,8 @@
               "show_tile_progress": false,
               "verbose": false,
               "predict_kwargs": null,
-              "nms_kwargs": null
+              "nms_kwargs": null,
+              "use_gpu": true
             },
             "title": "Advanced Parameters",
             "description": "Advanced parameters for Stardist segmentation."
@@ -883,6 +895,173 @@
         ],
         "type": "object",
         "title": "SeededSegmentation"
+      },
+      "docs_link": "https://github.com/pelkmanslab/abbott-segmentation-tasks"
+    },
+    {
+      "name": "Reduce Cell to Membrane Segmentation",
+      "category": "Segmentation",
+      "tags": [
+        "3D"
+      ],
+      "docs_info": "### Purpose\n- **Segments membranes based on cell segmentation**.\n- Accepts single label image input for segmentation.\n- Can process **arbitrary regions of interest (ROIs)**, including whole images, fields of view (FOVs), or masked outputs from prior segmentations, based on corresponding ROI tables.\n\n### Outputs\n- Generates a new label image named `membranes` if no label name is provided.\n",
+      "type": "parallel",
+      "executable_parallel": "membrane_segmentation_task.py",
+      "meta_parallel": {
+        "cpus_per_task": 4,
+        "mem": 16000,
+        "needs_gpu": true
+      },
+      "args_schema_parallel": {
+        "$defs": {
+          "CreateMaskingRoiTable": {
+            "description": "Create Masking ROI Table Configuration",
+            "properties": {
+              "mode": {
+                "const": "Create Masking ROI Table",
+                "default": "Create Masking ROI Table",
+                "title": "Mode",
+                "type": "string",
+                "description": "Literal[\"Create Masking ROI Table\"]: Mode to create masking ROI table."
+              },
+              "table_name": {
+                "default": "{label_name}_masking_ROI_table",
+                "title": "Table Name",
+                "type": "string",
+                "description": "str: Name of the masking ROI table to be created. Defaults to \"{label_name}_masking_ROI_table\", where {label_name} is the name of the label image used for segmentation."
+              }
+            },
+            "title": "CreateMaskingRoiTable",
+            "type": "object"
+          },
+          "IteratorConfiguration": {
+            "description": "Advanced Masking configuration.",
+            "properties": {
+              "masking": {
+                "$ref": "#/$defs/MaskingConfiguration",
+                "title": "Masking Iterator Configuration",
+                "description": "If configured, the segmentation will be only saved within the mask region."
+              },
+              "roi_table": {
+                "title": "Iterate Over ROIs",
+                "type": "string",
+                "description": "Name of a ROI table. If provided, the segmentation will be performed for each ROI in the specified ROI table."
+              }
+            },
+            "title": "IteratorConfiguration",
+            "type": "object"
+          },
+          "MaskingConfiguration": {
+            "description": "Masking configuration.",
+            "properties": {
+              "mode": {
+                "default": "Table Name",
+                "enum": [
+                  "Table Name",
+                  "Label Name"
+                ],
+                "title": "Mode",
+                "type": "string",
+                "description": "Mode of masking to be applied. If \"Table Name\", the identifier refers to a masking table name. If \"Label Name\", the identifier refers to a label image name."
+              },
+              "identifier": {
+                "title": "Identifier",
+                "type": "string",
+                "description": "Name of the masking table or label image depending on the mode."
+              }
+            },
+            "title": "MaskingConfiguration",
+            "type": "object"
+          },
+          "SkipCreateMaskingRoiTable": {
+            "description": "Skip Creating Masking ROI Table Configuration",
+            "properties": {
+              "mode": {
+                "const": "Skip Creating Masking ROI Table",
+                "default": "Skip Creating Masking ROI Table",
+                "title": "Mode",
+                "type": "string",
+                "description": "Literal[\"Skip Creating Masking ROI Table\"]: Mode to skip creating masking ROI table"
+              }
+            },
+            "title": "SkipCreateMaskingRoiTable",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "zarr_url": {
+            "title": "Zarr Url",
+            "type": "string",
+            "description": "URL to the OME-Zarr container"
+          },
+          "ref_acquisition": {
+            "title": "Ref Acquisition",
+            "type": "integer",
+            "description": "If provided the task will not cause an error if the label does not exist for non-reference acquisitions."
+          },
+          "label_name": {
+            "default": "cells",
+            "title": "Label Name",
+            "type": "string",
+            "description": "Template for the name of the label to create. This can"
+          },
+          "output_label_name": {
+            "default": "membranes",
+            "title": "Output Label Name",
+            "type": "string",
+            "description": "Name of the resulting label image. If not provided, it will default to \"membranes\"."
+          },
+          "level_path": {
+            "title": "Level Path",
+            "type": "string",
+            "description": "If the OME-Zarr has multiple resolution levels, the level to use can be specified here. If not provided, the highest resolution level will be used."
+          },
+          "iterator_configuration": {
+            "$ref": "#/$defs/IteratorConfiguration",
+            "title": "Iterator Configuration",
+            "description": "Configuration for the segmentation iterator. This can be used to specify masking and/or a ROI table."
+          },
+          "use_gpu": {
+            "default": true,
+            "title": "Use Gpu",
+            "type": "boolean",
+            "description": "If `False`, always use the CPU; if `True`, use the GPU if possible."
+          },
+          "create_masking_roi_table": {
+            "default": {
+              "mode": "Skip Creating Masking ROI Table"
+            },
+            "discriminator": {
+              "mapping": {
+                "Create Masking ROI Table": "#/$defs/CreateMaskingRoiTable",
+                "Skip Creating Masking ROI Table": "#/$defs/SkipCreateMaskingRoiTable"
+              },
+              "propertyName": "mode"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/CreateMaskingRoiTable"
+              },
+              {
+                "$ref": "#/$defs/SkipCreateMaskingRoiTable"
+              }
+            ],
+            "title": "Create Masking Roi Table",
+            "description": "Configuration to create a masking ROI table after segmentation."
+          },
+          "overwrite": {
+            "default": true,
+            "title": "Overwrite",
+            "type": "boolean",
+            "description": "Whether to overwrite an existing label image. Defaults to True."
+          }
+        },
+        "required": [
+          "zarr_url"
+        ],
+        "type": "object",
+        "title": "MembraneSegmentationTask"
       },
       "docs_link": "https://github.com/pelkmanslab/abbott-segmentation-tasks"
     }
