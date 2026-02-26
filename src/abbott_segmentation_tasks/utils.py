@@ -94,11 +94,15 @@ class SeededSegmentationChannels(BaseModel):
             interpret the identifier. Can be "label", "wavelength_id", or
             "index" (must be an integer). At least one and at most three
             identifiers must be provided.
+        skip_if_missing (bool): If True and the specified channel(s) are not found in
+            the image, the segmentation will be skipped instead of raising an error.
+            Defaults to False.
 
     """
 
     mode: Literal["label", "wavelength_id", "index"] = "label"
     identifiers: list[str] = Field(default_factory=list, min_length=1, max_length=3)
+    skip_if_missing: bool = False
 
     @field_validator("identifiers", mode="after")
     @classmethod
@@ -483,11 +487,15 @@ class StardistChannel(BaseModel):
             interpret the identifier. Can be "label", "wavelength_id", or
             "index" (must be an integer). At least one and at most three
             identifiers must be provided.
+        skip_if_missing (bool): If True and the specified channel(s) are not found in
+            the image, the segmentation will be skipped instead of raising an error.
+            Defaults to False.
 
     """
 
     mode: Literal["label", "wavelength_id", "index"] = "label"
     identifiers: list[str] = Field(default_factory=list, min_length=1, max_length=2)
+    skip_if_missing: bool = False
 
     def to_list(self) -> list[ChannelSelectionModel]:
         """Convert to list of ChannelSelectionModel.

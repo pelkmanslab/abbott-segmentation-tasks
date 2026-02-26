@@ -5,8 +5,10 @@ import time
 from typing import Optional
 
 import numpy as np
-from ngio import open_ome_zarr_container
+from ngio import OmeZarrContainer, open_ome_zarr_container
+from ngio.images._image import _parse_channel_selection
 from ngio.images._masked_image import MaskedImage, MaskedLabel
+from ngio.utils import NgioValueError
 from pydantic import validate_call
 from skimage.segmentation import watershed
 
@@ -134,13 +136,53 @@ def load_masked_label(
     return masked_label
 
 
+def _skip_segmentation(
+    channels: SeededSegmentationChannels, ome_zarr: OmeZarrContainer
+) -> bool:
+    """Check wheter to skip the current task based on the channel configuration.
+
+    If the channel selection specified in the channel parameter is not
+    valid for the provided OME-Zarr image, this function checks the
+    skip_if_missing attribute of the channel configuration.
+    If skip_if_missing is True, the function returns True, indicating that the task
+    should be skipped. If skip_if_missing is False, a ValueError is raised.
+
+    Args:
+        channels (current): The channel selection configuration.
+        ome_zarr (OmeZarrContainer): The OME-Zarr container to check against.
+
+    Returns:
+        bool: True if the task should be skipped due to missing channels,
+        False otherwise.
+
+    """
+    channels_list = channels.to_list()
+    image = ome_zarr.get_image()
+    try:
+        _parse_channel_selection(image=image, channel_selection=channels.to_list())
+    except NgioValueError as e:
+        if channels.skip_if_missing:
+            logger.warning(
+                f"Channel selection {channels_list} is not valid for the provided "
+                "image, but skip_if_missing is set to True. Skipping segmentation."
+            )
+            logger.debug(f"Original error message: {e}")
+            return True
+        else:
+            raise ValueError(
+                f"Channel selection {channels_list} is not valid for the provided "
+                "image. If you want to skip processing when channels are missing, "
+                "set skip_if_missing to True."
+            ) from e
+    return False
+
+
 @validate_call
 def seeded_segmentation(
     *,
     # Fractal managed parameters
     zarr_url: str,
     # Segmentation parameters
-    ref_acquisition: Optional[int] = None,
     label_name: str,
     channels: SeededSegmentationChannels,
     output_label_name: Optional[str] = None,
@@ -157,8 +199,6 @@ def seeded_segmentation(
 
     Args:
         zarr_url (str): URL to the OME-Zarr container
-        ref_acquisition (Optional[int]): If provided the task will not cause an error
-            if the label does not exist for non-reference acquisitions.
         label_name (str): Name of the seed label image to use for segmentation e.g.
             "nuclei".
         channels (SeededSegmentationChannels): Channels to use for segmentation.
@@ -186,20 +226,13 @@ def seeded_segmentation(
     # Open the OME-Zarr container
     ome_zarr = open_ome_zarr_container(zarr_url)
     logger.info(f"{ome_zarr=}")
+
+    # Validate that the specified channels are present in the image
+    if _skip_segmentation(channels=channels, ome_zarr=ome_zarr):
+        return None
+
     if output_label_name is None:
         output_label_name = f"{channels.identifiers[0]}_segmented"
-
-    # Check the acquisition and if it has the required label
-    path = ome_zarr.get_image().path
-    if int(path) != ref_acquisition and ref_acquisition is not None:
-        try:
-            ome_zarr.get_label(label_name)
-        except Exception:
-            logger.warning(
-                f"Label {label_name} not found for acquisition "
-                f"{path}. Skipping segmentation."
-            )
-            return None
 
     # Derive the label and an get it at the specified level path
     ome_zarr.derive_label(name=output_label_name, overwrite=overwrite)

@@ -6,9 +6,11 @@ from random import uniform
 from typing import Optional
 
 import numpy as np
-from ngio import open_ome_zarr_container
+from ngio import OmeZarrContainer, open_ome_zarr_container
 from ngio.experimental.iterators import MaskedSegmentationIterator, SegmentationIterator
+from ngio.images._image import _parse_channel_selection
 from ngio.images._masked_image import MaskedImage
+from ngio.utils import NgioValueError
 from pydantic import validate_call
 from stardist.models import StarDist2D, StarDist3D
 
@@ -130,13 +132,51 @@ def load_masked_image(
     return masked_image
 
 
+def _skip_segmentation(channel: StardistChannel, ome_zarr: OmeZarrContainer) -> bool:
+    """Check wheter to skip the current task based on the channel configuration.
+
+    If the channel selection specified in the channel parameter is not
+    valid for the provided OME-Zarr image, this function checks the
+    skip_if_missing attribute of the channel configuration.
+    If skip_if_missing is True, the function returns True, indicating that the task
+    should be skipped. If skip_if_missing is False, a ValueError is raised.
+
+    Args:
+        channel (current): The channel selection configuration.
+        ome_zarr (OmeZarrContainer): The OME-Zarr container to check against.
+
+    Returns:
+        bool: True if the task should be skipped due to missing channels,
+        False otherwise.
+
+    """
+    channels_list = channel.to_list()
+    image = ome_zarr.get_image()
+    try:
+        _parse_channel_selection(image=image, channel_selection=channel.to_list())
+    except NgioValueError as e:
+        if channel.skip_if_missing:
+            logger.warning(
+                f"Channel selection {channels_list} is not valid for the provided "
+                "image, but skip_if_missing is set to True. Skipping segmentation."
+            )
+            logger.debug(f"Original error message: {e}")
+            return True
+        else:
+            raise ValueError(
+                f"Channel selection {channels_list} is not valid for the provided "
+                "image. If you want to skip processing when channels are missing, "
+                "set skip_if_missing to True."
+            ) from e
+    return False
+
+
 @validate_call
 def stardist_segmentation_task(
     *,
     # Fractal managed parameters
     zarr_url: str,
     # Segmentation parameters
-    ref_acquisition: Optional[int] = None,
     channel: StardistChannel,
     label_name: Optional[str] = None,
     level_path: Optional[str] = None,
@@ -157,8 +197,6 @@ def stardist_segmentation_task(
 
     Args:
         zarr_url (str): URL to the OME-Zarr container
-        ref_acquisition (Optional[int]): If provided the task will not cause an error
-            if the label does not exist for non-reference acquisitions.
         channel (StardistChannel): Channel to use for segmentation.
         label_name (Optional[str]): Name of the resulting label image. If not provided,
             it will be set to "<channel_identifier>_segmented".
@@ -189,14 +227,8 @@ def stardist_segmentation_task(
     ome_zarr = open_ome_zarr_container(zarr_url)
 
     logging.info(f"{ome_zarr=}")
-
-    # Check the acquisition and if it has the required label
-    path = ome_zarr.get_image().path
-    if int(path) != ref_acquisition and ref_acquisition is not None:
-        logger.warning(
-            f"Current acquisition {path} does not match reference acquisition "
-            f"{ref_acquisition}. Skipping segmentation for this acquisition."
-        )
+    # Validate that the specified channels are present in the image
+    if _skip_segmentation(channel=channel, ome_zarr=ome_zarr):
         return None
 
     if label_name is None:
