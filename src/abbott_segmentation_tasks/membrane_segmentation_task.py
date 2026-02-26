@@ -7,6 +7,7 @@ import numpy as np
 from ngio import open_ome_zarr_container
 from ngio.images._masked_image import MaskedLabel
 from ngio.images._ome_zarr_container import OmeZarrContainer
+from ngio.utils import NgioValueError
 from pyclesperanto import reduce_labels_to_label_edges, select_device
 from pydantic import validate_call
 
@@ -82,14 +83,54 @@ def load_masked_label(
     return masked_label
 
 
+def _skip_segmentation(
+    channel: str, skip_if_missing: bool, ome_zarr: OmeZarrContainer
+) -> bool:
+    """Check wheter to skip the current task based on the channel configuration.
+
+    If the channel selection specified in the channel parameter is not
+    valid for the provided OME-Zarr image, this function checks the
+    skip_if_missing attribute of the channel configuration.
+    If skip_if_missing is True, the function returns True, indicating that the task
+    should be skipped. If skip_if_missing is False, a ValueError is raised.
+
+    Args:
+        channel (current): The name of the selected label image.
+        skip_if_missing (current): Whether to skip the task if the channel is missing.
+        ome_zarr (OmeZarrContainer): The OME-Zarr container to check against.
+
+    Returns:
+        bool: True if the task should be skipped due to missing channels,
+        False otherwise.
+
+    """
+    try:
+        ome_zarr.get_label(name=channel)
+    except NgioValueError as e:
+        if skip_if_missing:
+            logger.warning(
+                f"Label selection {channel} is not valid for the provided "
+                "image, but skip_if_missing is set to True. Skipping segmentation."
+            )
+            logger.debug(f"Original error message: {e}")
+            return True
+        else:
+            raise ValueError(
+                f"Label selection {channel} is not valid for the provided "
+                "image. If you want to skip processing when channels are missing, "
+                "set skip_if_missing to True."
+            ) from e
+    return False
+
+
 @validate_call
 def membrane_segmentation_task(
     *,
     # Fractal managed parameters
     zarr_url: str,
     # Segmentation parameters
-    ref_acquisition: int | None = None,
     label_name: str = "cells",
+    skip_if_missing: bool = False,
     output_label_name: str = "membranes",
     level_path: str | None = None,
     # Iteration parameters
@@ -106,9 +147,13 @@ def membrane_segmentation_task(
 
     Args:
         zarr_url (str): URL to the OME-Zarr container
-        ref_acquisition (int | None): If provided the task will not cause an error
-            if the label does not exist for non-reference acquisitions.
-        label_name (str): Template for the name of the label to create. This can
+        label_name (str): Name of the label image to extract membranes from.
+            Defaults to "cells".
+        skip_if_missing (bool): Whether to skip the task if the specified label
+            image is missing. Defaults to False, which means that a ValueError
+            will beraised if the label image is not found. If set to True, a
+            warning will be logged and the function will return without performing
+            segmentation.
         output_label_name (str | None): Name of the resulting label image. If not
             provided, it will default to "membranes".
         level_path (str | None): If the OME-Zarr has multiple resolution levels,
@@ -131,17 +176,11 @@ def membrane_segmentation_task(
     ome_zarr = open_ome_zarr_container(zarr_url)
     logger.info(f"{ome_zarr=}")
 
-    # Check the acquisition and if it has the required label
-    path = ome_zarr.get_image().path
-    if int(path) != ref_acquisition and ref_acquisition is not None:
-        try:
-            ome_zarr.get_label(label_name)
-        except Exception:
-            logger.warning(
-                f"Label {label_name} not found for acquisition "
-                f"{path}. Skipping segmentation."
-            )
-            return None
+    # Validate that the specified channels are present in the image
+    if _skip_segmentation(
+        channel=label_name, skip_if_missing=skip_if_missing, ome_zarr=ome_zarr
+    ):
+        return None
 
     # Derive the label and an get it at the specified level path
     ome_zarr.derive_label(name=output_label_name, overwrite=overwrite)

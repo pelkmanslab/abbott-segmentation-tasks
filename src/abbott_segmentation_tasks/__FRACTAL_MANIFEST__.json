@@ -391,6 +391,12 @@
                 "title": "Identifiers",
                 "type": "array",
                 "description": "Unique identifier for the channel. This can be a channel label, wavelength ID, or index."
+              },
+              "skip_if_missing": {
+                "default": false,
+                "title": "Skip If Missing",
+                "type": "boolean",
+                "description": "If True and the specified channel(s) are not found in the image, the segmentation will be skipped instead of raising an error. Defaults to False."
               }
             },
             "title": "StardistChannel",
@@ -436,11 +442,6 @@
             "title": "Zarr Url",
             "type": "string",
             "description": "URL to the OME-Zarr container"
-          },
-          "ref_acquisition": {
-            "title": "Ref Acquisition",
-            "type": "integer",
-            "description": "If provided the task will not cause an error if the label does not exist for non-reference acquisitions."
           },
           "channel": {
             "$ref": "#/$defs/StardistChannel",
@@ -749,6 +750,12 @@
                 "title": "Identifiers",
                 "type": "array",
                 "description": "Unique identifier for the channel. This can be a channel label, wavelength ID, or index."
+              },
+              "skip_if_missing": {
+                "default": false,
+                "title": "Skip If Missing",
+                "type": "boolean",
+                "description": "If True and the specified channel(s) are not found in the image, the segmentation will be skipped instead of raising an error. Defaults to False."
               }
             },
             "title": "SeededSegmentationChannels",
@@ -812,15 +819,16 @@
             "type": "string",
             "description": "URL to the OME-Zarr container"
           },
-          "ref_acquisition": {
-            "title": "Ref Acquisition",
-            "type": "integer",
-            "description": "If provided the task will not cause an error if the label does not exist for non-reference acquisitions."
-          },
           "label_name": {
             "title": "Label Name",
             "type": "string",
             "description": "Name of the seed label image to use for segmentation e.g. \"nuclei\"."
+          },
+          "skip_if_missing": {
+            "default": false,
+            "title": "Skip If Missing",
+            "type": "boolean",
+            "description": "Whether to skip the task if the specified label image is missing. Defaults to False, which means that a ValueError will be raised if the label image is not found. If set to True, a warning will be logged and the function will return without performing segmentation."
           },
           "channels": {
             "$ref": "#/$defs/SeededSegmentationChannels",
@@ -995,16 +1003,17 @@
             "type": "string",
             "description": "URL to the OME-Zarr container"
           },
-          "ref_acquisition": {
-            "title": "Ref Acquisition",
-            "type": "integer",
-            "description": "If provided the task will not cause an error if the label does not exist for non-reference acquisitions."
-          },
           "label_name": {
             "default": "cells",
             "title": "Label Name",
             "type": "string",
-            "description": "Template for the name of the label to create. This can"
+            "description": "Name of the label image to extract membranes from. Defaults to \"cells\"."
+          },
+          "skip_if_missing": {
+            "default": false,
+            "title": "Skip If Missing",
+            "type": "boolean",
+            "description": "Whether to skip the task if the specified label image is missing. Defaults to False, which means that a ValueError will be raised if the label image is not found. If set to True, a warning will be logged and the function will return without performing segmentation."
           },
           "output_label_name": {
             "default": "membranes",

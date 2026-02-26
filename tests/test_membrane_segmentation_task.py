@@ -162,3 +162,71 @@ def test_membrane_segmentation_task_no_mock(is_github_or_fast, tmp_path: Path):
 
     # Check that the label image was created
     assert "membranes" in ome_zarr.list_labels()
+
+
+def test_skip_if_missing_with_valid_channel(tmp_path: Path):
+    """When skip_if_missing=True and the channel exists, the task runs normally."""
+    test_data_path = tmp_path / "data.zarr"
+    ome_zarr = create_synthetic_ome_zarr(
+        store=test_data_path,
+        shape=(64, 64),
+        channels_meta=["DAPI_0"],
+        overwrite=False,
+        axes_names="yx",
+    )
+
+    ome_zarr.derive_label(name="cells", channels_policy="squeeze")
+
+    membrane_segmentation_task(
+        zarr_url=str(test_data_path),
+        label_name="cells",
+        skip_if_missing=True,
+        overwrite=False,
+    )
+
+    # Channel exists → task must have run and created the label
+    assert "membranes" in ome_zarr.list_labels()
+
+
+def test_skip_if_missing_with_invalid_channel(tmp_path: Path):
+    """When skip_if_missing=True and the channel is absent, the task skips silently."""
+    test_data_path = tmp_path / "data.zarr"
+    ome_zarr = create_synthetic_ome_zarr(
+        store=test_data_path,
+        shape=(64, 64),
+        channels_meta=["DAPI_0"],
+        overwrite=False,
+        axes_names="yx",
+    )
+
+    result = membrane_segmentation_task(
+        zarr_url=str(test_data_path),
+        label_name="cells",
+        skip_if_missing=True,
+        overwrite=False,
+    )
+
+    # Task should return None without raising and without creating any label
+    assert result is None
+    assert "membranes" not in ome_zarr.list_labels()
+
+
+def test_raise_if_missing_with_invalid_channel(tmp_path: Path):
+    """When skip_if_missing=False and channel is absent, a ValueError is raised."""
+    test_data_path = tmp_path / "data.zarr"
+    create_synthetic_ome_zarr(
+        store=test_data_path,
+        shape=(64, 64),
+        channels_meta=["DAPI_0"],
+        overwrite=False,
+        axes_names="yx",
+    )
+
+    # skip_if_missing defaults to False
+    with pytest.raises(ValueError, match="cells"):
+        membrane_segmentation_task(
+            zarr_url=str(test_data_path),
+            label_name="cells",
+            skip_if_missing=False,
+            overwrite=False,
+        )
