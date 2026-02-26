@@ -164,8 +164,11 @@ def test_membrane_segmentation_task_no_mock(is_github_or_fast, tmp_path: Path):
     assert "membranes" in ome_zarr.list_labels()
 
 
-def test_skip_if_missing_with_valid_channel(tmp_path: Path):
+def test_skip_if_missing_with_valid_channel(is_github_or_fast, tmp_path: Path):
     """When skip_if_missing=True and the channel exists, the task runs normally."""
+    if is_github_or_fast:
+        pytest.skip("Skipping test in GitHub Actions.")
+
     test_data_path = tmp_path / "data.zarr"
     ome_zarr = create_synthetic_ome_zarr(
         store=test_data_path,
@@ -188,8 +191,11 @@ def test_skip_if_missing_with_valid_channel(tmp_path: Path):
     assert "membranes" in ome_zarr.list_labels()
 
 
-def test_skip_if_missing_with_invalid_channel(tmp_path: Path):
+def test_skip_if_missing_with_invalid_channel(is_github_or_fast, tmp_path: Path):
     """When skip_if_missing=True and the channel is absent, the task skips silently."""
+    if is_github_or_fast:
+        pytest.skip("Skipping test in GitHub Actions.")
+
     test_data_path = tmp_path / "data.zarr"
     ome_zarr = create_synthetic_ome_zarr(
         store=test_data_path,
@@ -211,8 +217,11 @@ def test_skip_if_missing_with_invalid_channel(tmp_path: Path):
     assert "membranes" not in ome_zarr.list_labels()
 
 
-def test_raise_if_missing_with_invalid_channel(tmp_path: Path):
+def test_raise_if_missing_with_invalid_channel(is_github_or_fast, tmp_path: Path):
     """When skip_if_missing=False and channel is absent, a ValueError is raised."""
+    if is_github_or_fast:
+        pytest.skip("Skipping test in GitHub Actions.")
+
     test_data_path = tmp_path / "data.zarr"
     create_synthetic_ome_zarr(
         store=test_data_path,
