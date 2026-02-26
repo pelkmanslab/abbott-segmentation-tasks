@@ -828,7 +828,7 @@
             "default": false,
             "title": "Skip If Missing",
             "type": "boolean",
-            "description": "Whether to skip the task if the specified label image is missing. Defaults to False, which means that a ValueError will be raised if the label image is not found. If set to True, a warning will be logged and the function will return without performing segmentation."
+            "description": "Whether to skip the task if the specified label image is missing.Defaults to False, which means that a ValueError will be raised if the label image is not found. If set to True, a warning will be logged and the function will return without performing segmentation."
           },
           "channels": {
             "$ref": "#/$defs/SeededSegmentationChannels",
@@ -1013,7 +1013,7 @@
             "default": false,
             "title": "Skip If Missing",
             "type": "boolean",
-            "description": "Whether to skip the task if the specified label image is missing. Defaults to False, which means that a ValueError will be raised if the label image is not found. If set to True, a warning will be logged and the function will return without performing segmentation."
+            "description": "Whether to skip the task if the specified label image is missing. Defaults to False, which means that a ValueError will beraised if the label image is not found. If set to True, a warning will be logged and the function will return without performing segmentation."
           },
           "output_label_name": {
             "default": "membranes",

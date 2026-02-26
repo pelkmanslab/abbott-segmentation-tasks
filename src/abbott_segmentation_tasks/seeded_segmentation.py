@@ -184,7 +184,6 @@ def seeded_segmentation(
     zarr_url: str,
     # Segmentation parameters
     label_name: str,
-    skip_if_missing: bool = False,
     channels: SeededSegmentationChannels,
     output_label_name: Optional[str] = None,
     level_path: Optional[str] = None,
@@ -202,10 +201,6 @@ def seeded_segmentation(
         zarr_url (str): URL to the OME-Zarr container
         label_name (str): Name of the seed label image to use for segmentation e.g.
             "nuclei".
-        skip_if_missing (bool): Whether to skip the task if the specified label
-            image is missing.Defaults to False, which means that a ValueError will
-            be raised if the label image is not found. If set to True, a warning will
-            be logged and the function will return without performing segmentation.
         channels (SeededSegmentationChannels): Channels to use for segmentation.
             It must contain between 1 and 3 channel identifiers.
         output_label_name (Optional[str]): Name of the resulting label image.
