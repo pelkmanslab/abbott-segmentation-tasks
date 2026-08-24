@@ -34,7 +34,7 @@ dependencies = [
     "stardist",
     "setuptools<81",
     "h5py==3.14.0",
-    "pyclesperanto",
+    "pyclesperanto<0.22.0",
     "tensorflow",
 ]
 
