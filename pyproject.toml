@@ -33,7 +33,8 @@ dependencies = [
     "optree",
     "stardist",
     "setuptools<81",
-    "pyclesperanto",
+    "h5py==3.14.0",
+    "pyclesperanto<0.22.0",
     "tensorflow",
 ]
 
