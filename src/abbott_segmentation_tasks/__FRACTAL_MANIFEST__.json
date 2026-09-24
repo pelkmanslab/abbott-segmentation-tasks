@@ -32,24 +32,36 @@
                   "lower_bound": null,
                   "upper_bound": null
                 },
-                "title": "Normalization",
-                "description": "Normalization parameters. The normalization is applied before running the Stardist model for each channel independently."
+                "title": "Normalization"
               },
               "sparse": {
                 "default": true,
                 "title": "Sparse",
-                "type": "boolean",
-                "description": "If true, aggregate probabilities/distances sparsely during tiled prediction to save memory (recommended)"
+                "type": "boolean"
               },
               "prob_thresh": {
-                "title": "Prob Thresh",
-                "type": "number",
-                "description": "Consider only object candidates from pixels with predicted object probability above this threshold."
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Prob Thresh"
               },
               "nms_thresh": {
-                "title": "Nms Thresh",
-                "type": "number",
-                "description": "Perform non-maximum suppression (NMS) that considers two objects to be the same when their area/surface overlap exceeds this threshold."
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Nms Thresh"
               },
               "scale": {
                 "default": [
@@ -71,8 +83,7 @@
                   }
                 ],
                 "title": "Scale",
-                "type": "array",
-                "description": "Scale the input image internally by a tuple of floats and rescale the output accordingly. Useful if the Stardist model has been trained on images with different scaling. E.g. (z, y, x) = (1.0, 0.5, 0.5)."
+                "type": "array"
               },
               "n_tiles": {
                 "default": [
@@ -94,38 +105,34 @@
                   }
                 ],
                 "title": "N Tiles",
-                "type": "array",
-                "description": "Out of memory (OOM) errors can occur if the input image is too large. To avoid this problem, the input image is broken up into (overlapping) tiles that are processed independently and re-assembled. This parameter denotes a tuple of the number of tiles for every image axis. E.g. (z, y, x) = (2, 4, 4)."
+                "type": "array"
               },
               "show_tile_progress": {
                 "default": false,
                 "title": "Show Tile Progress",
-                "type": "boolean",
-                "description": "Whether to show progress during tiled prediction."
+                "type": "boolean"
               },
               "verbose": {
                 "default": false,
                 "title": "Verbose",
-                "type": "boolean",
-                "description": "Whether to print some info messages."
+                "type": "boolean"
               },
               "predict_kwargs": {
                 "additionalProperties": true,
+                "default": null,
                 "title": "Predict Kwargs",
-                "type": "object",
-                "description": "Keyword arguments for ``predict`` function of Keras model."
+                "type": "object"
               },
               "nms_kwargs": {
                 "additionalProperties": true,
+                "default": null,
                 "title": "Nms Kwargs",
-                "type": "object",
-                "description": "Keyword arguments for non-maximum suppression."
+                "type": "object"
               },
               "use_gpu": {
                 "default": true,
                 "title": "Use Gpu",
-                "type": "boolean",
-                "description": "Whether to use GPU for prediction if available. If false, runs on CPU."
+                "type": "boolean"
               }
             },
             "title": "AdvancedStardistParams",
@@ -138,14 +145,12 @@
                 "const": "Create Masking ROI Table",
                 "default": "Create Masking ROI Table",
                 "title": "Mode",
-                "type": "string",
-                "description": "Literal[\"Create Masking ROI Table\"]: Mode to create masking ROI table."
+                "type": "string"
               },
               "table_name": {
                 "default": "{label_name}_masking_ROI_table",
                 "title": "Table Name",
-                "type": "string",
-                "description": "str: Name of the masking ROI table to be created. Defaults to \"{label_name}_masking_ROI_table\", where {label_name} is the name of the label image used for segmentation."
+                "type": "string"
               }
             },
             "title": "CreateMaskingRoiTable",
@@ -158,20 +163,25 @@
                 "const": "gaussian",
                 "default": "gaussian",
                 "title": "Type",
-                "type": "string",
-                "description": "Type of pre-processing."
+                "type": "string"
               },
               "sigma_xy": {
                 "default": 2.0,
                 "exclusiveMinimum": 0,
                 "title": "Sigma Xy",
-                "type": "number",
-                "description": "Standard deviation for Gaussian kernel in XY plane."
+                "type": "number"
               },
               "sigma_z": {
-                "title": "Sigma Z",
-                "type": "number",
-                "description": "Standard deviation for Gaussian kernel in Z axis. If not specified, no smoothing is applied in Z axis."
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Sigma Z"
               }
             },
             "title": "GaussianFilter",
@@ -181,14 +191,28 @@
             "description": "Advanced Masking configuration.",
             "properties": {
               "masking": {
-                "$ref": "#/$defs/MaskingConfiguration",
-                "title": "Masking Iterator Configuration",
-                "description": "If configured, the segmentation will be only saved within the mask region."
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/MaskingConfiguration"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Masking Iterator Configuration"
               },
               "roi_table": {
-                "title": "Iterate Over ROIs",
-                "type": "string",
-                "description": "Name of a ROI table. If provided, the segmentation will be performed for each ROI in the specified ROI table."
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Iterate Over ROIs"
               }
             },
             "title": "IteratorConfiguration",
@@ -204,13 +228,19 @@
                   "Label Name"
                 ],
                 "title": "Mode",
-                "type": "string",
-                "description": "Mode of masking to be applied. If \"Table Name\", the identifier refers to a masking table name. If \"Label Name\", the identifier refers to a label image name."
+                "type": "string"
               },
               "identifier": {
-                "title": "Identifier",
-                "type": "string",
-                "description": "Name of the masking table or label image depending on the mode."
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Identifier"
               }
             },
             "title": "MaskingConfiguration",
@@ -223,20 +253,25 @@
                 "const": "median",
                 "default": "median",
                 "title": "Type",
-                "type": "string",
-                "description": "Type of pre-processing."
+                "type": "string"
               },
               "size_xy": {
                 "default": 2,
                 "exclusiveMinimum": 0,
                 "title": "Size Xy",
-                "type": "integer",
-                "description": "Size in pixels of the median filter in XY plane."
+                "type": "integer"
               },
               "size_z": {
-                "title": "Size Z",
-                "type": "integer",
-                "description": "Size in pixels of the median filter in Z axis. If not specified, no filtering is applied in Z axis."
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Size Z"
               }
             },
             "title": "MedianFilter",
@@ -253,32 +288,59 @@
                   "no_normalization"
                 ],
                 "title": "Norm Type",
-                "type": "string",
-                "description": "One of `default` (Stardist default normalization), `custom` (using the other custom parameters) or `no_normalization`."
+                "type": "string"
               },
               "lower_percentile": {
-                "maximum": 100,
-                "minimum": 0,
-                "title": "Lower Percentile",
-                "type": "number",
-                "description": "Specify a custom lower-bound percentile for rescaling as a float value between 0 and 100. Set to 1 to run the same as default). You can only specify percentiles or bounds, not both."
+                "anyOf": [
+                  {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Lower Percentile"
               },
               "upper_percentile": {
-                "maximum": 100,
-                "minimum": 0,
-                "title": "Upper Percentile",
-                "type": "number",
-                "description": "Specify a custom upper-bound percentile for rescaling as a float value between 0 and 100. Set to 99 to run the same as default, set to e.g. 99.99 if the default rescaling was too harsh. You can only specify percentiles or bounds, not both."
+                "anyOf": [
+                  {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Upper Percentile"
               },
               "lower_bound": {
-                "title": "Lower Bound",
-                "type": "integer",
-                "description": "Explicit lower bound value to rescale the image at. Needs to be an integer, e.g. 100. You can only specify percentiles or bounds, not both."
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Lower Bound"
               },
               "upper_bound": {
-                "title": "Upper Bound",
-                "type": "integer",
-                "description": "Explicit upper bound value to rescale the image at. Needs to be an integer, e.g. 2000. You can only specify percentiles or bounds, not both."
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Upper Bound"
               }
             },
             "title": "NormalizationParameters",
@@ -288,6 +350,7 @@
             "description": "Configuration for pre- and post-processing steps.",
             "properties": {
               "pre_process": {
+                "default": [],
                 "items": {
                   "discriminator": {
                     "mapping": {
@@ -306,10 +369,10 @@
                   ]
                 },
                 "title": "Pre Process",
-                "type": "array",
-                "description": "List of pre-processing steps."
+                "type": "array"
               },
               "post_process": {
+                "default": [],
                 "items": {
                   "discriminator": {
                     "mapping": {
@@ -324,8 +387,7 @@
                   ]
                 },
                 "title": "Post Process",
-                "type": "array",
-                "description": "List of post-processing steps."
+                "type": "array"
               }
             },
             "title": "PrePostProcessConfiguration",
@@ -338,14 +400,12 @@
                 "const": "size_filter",
                 "default": "size_filter",
                 "title": "Type",
-                "type": "string",
-                "description": "Type of post-processing."
+                "type": "string"
               },
               "max_size": {
                 "minimum": 0,
                 "title": "Max Size",
-                "type": "integer",
-                "description": "Maximum size in pixels for objects to keep."
+                "type": "integer"
               }
             },
             "required": [
@@ -361,8 +421,7 @@
                 "const": "Skip Creating Masking ROI Table",
                 "default": "Skip Creating Masking ROI Table",
                 "title": "Mode",
-                "type": "string",
-                "description": "Literal[\"Skip Creating Masking ROI Table\"]: Mode to skip creating masking ROI table"
+                "type": "string"
               }
             },
             "title": "SkipCreateMaskingRoiTable",
@@ -379,24 +438,22 @@
                   "index"
                 ],
                 "title": "Mode",
-                "type": "string",
-                "description": "Specifies how to interpret the identifier. Can be \"label\", \"wavelength_id\", or \"index\" (must be an integer). At least one and at most three identifiers must be provided."
+                "type": "string"
               },
               "identifiers": {
+                "default": [],
                 "items": {
                   "type": "string"
                 },
                 "maxItems": 2,
                 "minItems": 1,
                 "title": "Identifiers",
-                "type": "array",
-                "description": "Unique identifier for the channel. This can be a channel label, wavelength ID, or index."
+                "type": "array"
               },
               "skip_if_missing": {
                 "default": false,
                 "title": "Skip If Missing",
-                "type": "boolean",
-                "description": "If True and the specified channel(s) are not found in the image, the segmentation will be skipped instead of raising an error. Defaults to False."
+                "type": "boolean"
               }
             },
             "title": "StardistChannel",
@@ -419,13 +476,11 @@
             "properties": {
               "base_fld": {
                 "title": "Base Fld",
-                "type": "string",
-                "description": "Base folder to where custom Stardist models are stored"
+                "type": "string"
               },
               "pretrained_model_name": {
                 "title": "Pretrained Model Name",
-                "type": "string",
-                "description": "Name of the custom model"
+                "type": "string"
               }
             },
             "required": [
@@ -449,17 +504,41 @@
             "description": "Channel to use for segmentation."
           },
           "label_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Label Name",
-            "type": "string",
             "description": "Name of the resulting label image. If not provided, it will be set to \"<channel_identifier>_segmented\"."
           },
           "level_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Level Path",
-            "type": "string",
             "description": "If the OME-Zarr has multiple resolution levels, the level to use can be specified here. If not provided, the highest resolution level will be used."
           },
           "iterator_configuration": {
-            "$ref": "#/$defs/IteratorConfiguration",
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IteratorConfiguration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Iterator Configuration",
             "description": "Configuration for the segmentation iterator. This can be used to specify masking and/or a ROI table."
           },
@@ -470,7 +549,15 @@
             "description": "Parameter of `Stardist_ModelNames` class. Defines which model should be used. E.g. `2D_versatile_fluo`, `2D_versatile_he`, `2D_demo`, `3D_demo`."
           },
           "custom_model": {
-            "$ref": "#/$defs/StardistpretrainedModel",
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StardistpretrainedModel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Custom Model",
             "description": "Allows you to specify the path of a custom trained stardist model (takes precedence over `model_type`)."
           },
@@ -576,14 +663,12 @@
                 "const": "Create Masking ROI Table",
                 "default": "Create Masking ROI Table",
                 "title": "Mode",
-                "type": "string",
-                "description": "Literal[\"Create Masking ROI Table\"]: Mode to create masking ROI table."
+                "type": "string"
               },
               "table_name": {
                 "default": "{label_name}_masking_ROI_table",
                 "title": "Table Name",
-                "type": "string",
-                "description": "str: Name of the masking ROI table to be created. Defaults to \"{label_name}_masking_ROI_table\", where {label_name} is the name of the label image used for segmentation."
+                "type": "string"
               }
             },
             "title": "CreateMaskingRoiTable",
@@ -596,20 +681,25 @@
                 "const": "gaussian",
                 "default": "gaussian",
                 "title": "Type",
-                "type": "string",
-                "description": "Type of pre-processing."
+                "type": "string"
               },
               "sigma_xy": {
                 "default": 2.0,
                 "exclusiveMinimum": 0,
                 "title": "Sigma Xy",
-                "type": "number",
-                "description": "Standard deviation for Gaussian kernel in XY plane."
+                "type": "number"
               },
               "sigma_z": {
-                "title": "Sigma Z",
-                "type": "number",
-                "description": "Standard deviation for Gaussian kernel in Z axis. If not specified, no smoothing is applied in Z axis."
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Sigma Z"
               }
             },
             "title": "GaussianFilter",
@@ -619,14 +709,28 @@
             "description": "Advanced Masking configuration.",
             "properties": {
               "masking": {
-                "$ref": "#/$defs/MaskingConfiguration",
-                "title": "Masking Iterator Configuration",
-                "description": "If configured, the segmentation will be only saved within the mask region."
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/MaskingConfiguration"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Masking Iterator Configuration"
               },
               "roi_table": {
-                "title": "Iterate Over ROIs",
-                "type": "string",
-                "description": "Name of a ROI table. If provided, the segmentation will be performed for each ROI in the specified ROI table."
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Iterate Over ROIs"
               }
             },
             "title": "IteratorConfiguration",
@@ -642,13 +746,19 @@
                   "Label Name"
                 ],
                 "title": "Mode",
-                "type": "string",
-                "description": "Mode of masking to be applied. If \"Table Name\", the identifier refers to a masking table name. If \"Label Name\", the identifier refers to a label image name."
+                "type": "string"
               },
               "identifier": {
-                "title": "Identifier",
-                "type": "string",
-                "description": "Name of the masking table or label image depending on the mode."
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Identifier"
               }
             },
             "title": "MaskingConfiguration",
@@ -661,20 +771,25 @@
                 "const": "median",
                 "default": "median",
                 "title": "Type",
-                "type": "string",
-                "description": "Type of pre-processing."
+                "type": "string"
               },
               "size_xy": {
                 "default": 2,
                 "exclusiveMinimum": 0,
                 "title": "Size Xy",
-                "type": "integer",
-                "description": "Size in pixels of the median filter in XY plane."
+                "type": "integer"
               },
               "size_z": {
-                "title": "Size Z",
-                "type": "integer",
-                "description": "Size in pixels of the median filter in Z axis. If not specified, no filtering is applied in Z axis."
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Size Z"
               }
             },
             "title": "MedianFilter",
@@ -684,6 +799,7 @@
             "description": "Configuration for pre- and post-processing steps.",
             "properties": {
               "pre_process": {
+                "default": [],
                 "items": {
                   "discriminator": {
                     "mapping": {
@@ -702,10 +818,10 @@
                   ]
                 },
                 "title": "Pre Process",
-                "type": "array",
-                "description": "List of pre-processing steps."
+                "type": "array"
               },
               "post_process": {
+                "default": [],
                 "items": {
                   "discriminator": {
                     "mapping": {
@@ -720,8 +836,7 @@
                   ]
                 },
                 "title": "Post Process",
-                "type": "array",
-                "description": "List of post-processing steps."
+                "type": "array"
               }
             },
             "title": "PrePostProcessConfiguration",
@@ -738,24 +853,22 @@
                   "index"
                 ],
                 "title": "Mode",
-                "type": "string",
-                "description": "Specifies how to interpret the identifier. Can be \"label\", \"wavelength_id\", or \"index\" (must be an integer). At least one and at most three identifiers must be provided."
+                "type": "string"
               },
               "identifiers": {
+                "default": [],
                 "items": {
                   "type": "string"
                 },
                 "maxItems": 3,
                 "minItems": 1,
                 "title": "Identifiers",
-                "type": "array",
-                "description": "Unique identifier for the channel. This can be a channel label, wavelength ID, or index."
+                "type": "array"
               },
               "skip_if_missing": {
                 "default": false,
                 "title": "Skip If Missing",
-                "type": "boolean",
-                "description": "If True and the specified channel(s) are not found in the image, the segmentation will be skipped instead of raising an error. Defaults to False."
+                "type": "boolean"
               }
             },
             "title": "SeededSegmentationChannels",
@@ -767,8 +880,7 @@
               "compactness": {
                 "default": 0.0,
                 "title": "Compactness",
-                "type": "number",
-                "description": "Parameter for skimage.segmentation.watershed. Higher values result in more regularly-shaped watershed basins."
+                "type": "number"
               }
             },
             "title": "SeededSegmentationParams",
@@ -781,14 +893,12 @@
                 "const": "size_filter",
                 "default": "size_filter",
                 "title": "Type",
-                "type": "string",
-                "description": "Type of post-processing."
+                "type": "string"
               },
               "max_size": {
                 "minimum": 0,
                 "title": "Max Size",
-                "type": "integer",
-                "description": "Maximum size in pixels for objects to keep."
+                "type": "integer"
               }
             },
             "required": [
@@ -804,8 +914,7 @@
                 "const": "Skip Creating Masking ROI Table",
                 "default": "Skip Creating Masking ROI Table",
                 "title": "Mode",
-                "type": "string",
-                "description": "Literal[\"Skip Creating Masking ROI Table\"]: Mode to skip creating masking ROI table"
+                "type": "string"
               }
             },
             "title": "SkipCreateMaskingRoiTable",
@@ -830,17 +939,41 @@
             "description": "Channels to use for segmentation. It must contain between 1 and 3 channel identifiers."
           },
           "output_label_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Output Label Name",
-            "type": "string",
             "description": "Name of the resulting label image. If not provided, it will be set to \"<channel_identifier>_segmented\"."
           },
           "level_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Level Path",
-            "type": "string",
             "description": "If the OME-Zarr has multiple resolution levels, the level to use can be specified here. If not provided, the highest resolution level will be used."
           },
           "iterator_configuration": {
-            "$ref": "#/$defs/IteratorConfiguration",
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IteratorConfiguration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Iterator Configuration",
             "description": "Configuration for the segmentation iterator. This can be used to specify masking and/or a ROI table."
           },
@@ -923,14 +1056,12 @@
                 "const": "Create Masking ROI Table",
                 "default": "Create Masking ROI Table",
                 "title": "Mode",
-                "type": "string",
-                "description": "Literal[\"Create Masking ROI Table\"]: Mode to create masking ROI table."
+                "type": "string"
               },
               "table_name": {
                 "default": "{label_name}_masking_ROI_table",
                 "title": "Table Name",
-                "type": "string",
-                "description": "str: Name of the masking ROI table to be created. Defaults to \"{label_name}_masking_ROI_table\", where {label_name} is the name of the label image used for segmentation."
+                "type": "string"
               }
             },
             "title": "CreateMaskingRoiTable",
@@ -940,14 +1071,28 @@
             "description": "Advanced Masking configuration.",
             "properties": {
               "masking": {
-                "$ref": "#/$defs/MaskingConfiguration",
-                "title": "Masking Iterator Configuration",
-                "description": "If configured, the segmentation will be only saved within the mask region."
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/MaskingConfiguration"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Masking Iterator Configuration"
               },
               "roi_table": {
-                "title": "Iterate Over ROIs",
-                "type": "string",
-                "description": "Name of a ROI table. If provided, the segmentation will be performed for each ROI in the specified ROI table."
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Iterate Over ROIs"
               }
             },
             "title": "IteratorConfiguration",
@@ -963,13 +1108,19 @@
                   "Label Name"
                 ],
                 "title": "Mode",
-                "type": "string",
-                "description": "Mode of masking to be applied. If \"Table Name\", the identifier refers to a masking table name. If \"Label Name\", the identifier refers to a label image name."
+                "type": "string"
               },
               "identifier": {
-                "title": "Identifier",
-                "type": "string",
-                "description": "Name of the masking table or label image depending on the mode."
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Identifier"
               }
             },
             "title": "MaskingConfiguration",
@@ -982,8 +1133,7 @@
                 "const": "Skip Creating Masking ROI Table",
                 "default": "Skip Creating Masking ROI Table",
                 "title": "Mode",
-                "type": "string",
-                "description": "Literal[\"Skip Creating Masking ROI Table\"]: Mode to skip creating masking ROI table"
+                "type": "string"
               }
             },
             "title": "SkipCreateMaskingRoiTable",
@@ -1016,12 +1166,28 @@
             "description": "Name of the resulting label image. If not provided, it will default to \"membranes\"."
           },
           "level_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Level Path",
-            "type": "string",
             "description": "If the OME-Zarr has multiple resolution levels, the level to use can be specified here. If not provided, the highest resolution level will be used."
           },
           "iterator_configuration": {
-            "$ref": "#/$defs/IteratorConfiguration",
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IteratorConfiguration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
             "title": "Iterator Configuration",
             "description": "Configuration for the segmentation iterator. This can be used to specify masking and/or a ROI table."
           },
@@ -1070,6 +1236,6 @@
     }
   ],
   "has_args_schemas": true,
-  "args_schema_version": "pydantic_v2",
+  "args_schema_version": "fractal_schema_v1",
   "authors": "Ruth Hornbachner"
 }

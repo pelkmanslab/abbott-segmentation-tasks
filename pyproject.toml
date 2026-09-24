@@ -26,8 +26,8 @@ authors = [
 # Required Python version and dependencies
 requires-python = "==3.11.*"
 dependencies = [
-    "ngio>=0.5.2,<0.6",
-    "fractal-task-tools>=0.2,<0.3",
+    "ngio==1.0.0",
+    "fractal-task-tools==0.5.0",
     "scikit-image",
     "csbdeep", 
     "optree",
